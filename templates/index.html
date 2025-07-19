@@ -75,6 +75,19 @@
     #opacitySlider {
       width: 80%;
     }
+    #runButton {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    #runButton:hover {
+      background-color: #45a049;
+    }
     .recentImages {
       margin-top: 20px;
     }
@@ -118,6 +131,7 @@
     <div id="bottomPanel">
       <label id="opacityLabel" for="opacitySlider">Overlay Opacity: <span id="opacityValue">0.6</span></label>
       <input type="range" id="opacitySlider" min="0" max="1" step="0.05" value="0.6" />
+      <button id="runButton">Run Radar Generation</button>
     </div>
   </div>
 
@@ -228,6 +242,18 @@
         });
     }
     setInterval(updateRecentImages, 5000); // Update every 5 seconds
+
+    // Trigger radar generation manually
+    document.getElementById('runButton').addEventListener('click', () => {
+      fetch('/run-generation', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          alert(data.message || 'Radar generation started.');
+        })
+        .catch(() => {
+          alert('Error starting radar generation.');
+        });
+    });
 
     document.addEventListener('DOMContentLoaded', () => {
       updateStatus();
