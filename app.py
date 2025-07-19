@@ -250,6 +250,114 @@ def index():
 
     return render_template("index.html", stations=stations)
 
+@app.route('/run-generation', methods=['POST'])
+def run_generation():
+    global generation_status
+    try:
+        generation_status["status"] = "Manually triggered radar generation..."
+        generation_status["last_updated"] = dt.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        threading.Thread(target=generate_radar_images_once, daemon=True).start()
+        return jsonify({"message": "Radar generation started manually."}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def generate_radar_images_once():
+    global generation_status, recent_images
+    try:
+        recent_images.clear()  # Clear the list of recent images for this cycle
+
+        datTime = dt.utcnow()
+        year = datTime.strftime("%Y")
+        month = datTime.strftime("%m")
+        day = datTime.strftime("%d")
+        hour = datTime.strftime("%H")
+        timeStr = f'{year}{month}{day}{hour}'
+
+        fs = fsspec.filesystem("s3", anon=True)
+
+        stations = ['KLWX', 'KCCX', 'KJKL', 'KENX', 'KBGM', 'KTYX', 'KCXX', 'KBUF', 'KOKX', 'KFCX']
+        output_dir = "static/radar"
+        os.makedirs(output_dir, exist_ok=True)
+
+        for site in stations:
+            pattern = f's3://noaa-nexrad-level2/{year}/{month}/{day}/{site}/{site}{year}{month}{day}_*'
+            files = sorted(fs.glob(pattern), reverse=True)
+
+            if not files:
+                print(f"No files found for station {site}. Skipping...")
+                continue
+
+            latest_file = files[0]
+            print(f"Processing station {site}: {latest_file}")
+
+            radar = pyart.io.read_nexrad_archive(f's3://{latest_file}')
+
+            reflectivity_data = radar.fields['reflectivity']['data']
+            reflectivity_data = np.ma.masked_less(reflectivity_data, 5)
+            radar.fields['reflectivity']['data'] = reflectivity_data
+
+            ref_norm, ref_cmap = ctables.registry.get_with_steps('NWSReflectivity', 5, 5)
+
+            fig = plt.figure(figsize=(16, 16))
+            ax = fig.add_subplot(1, 1, 1)
+
+            display = pyart.graph.RadarMapDisplay(radar)
+
+            display.plot_ppi(
+                'reflectivity',
+                0,
+                ax=ax,
+                cmap=ref_cmap,
+                norm=ref_norm,
+                vmin=15,
+                vmax=75,
+                colorbar_flag=False,
+                title=''
+            )
+
+            ax.set_axis_off()
+            fig.patch.set_alpha(0)
+            ax.patch.set_alpha(0)
+
+            output_file = f"{output_dir}/{site}_Reflectivity_{timeStr}.png"
+            plt.savefig(output_file, dpi=600, bbox_inches='tight', pad_inches=0, transparent=True)
+            plt.close()
+
+            print(f"Saved radar image to: {output_file}")
+
+            # Add the generated image to the recent images list
+            recent_images.append({
+                "station": site,
+                "image": output_file.replace('\\', '/'),
+                "timestamp": timeStr
+            })
+
+            gate_lats = radar.gate_latitude['data']
+            gate_lons = radar.gate_longitude['data']
+
+            flat_lats = gate_lats.flatten()
+            flat_lons = gate_lons.flatten()
+
+            bounds = {
+                "min_lat": float(np.min(flat_lats)),
+                "max_lat": float(np.max(flat_lats)),
+                "min_lon": float(np.min(flat_lons)),
+                "max_lon": float(np.max(flat_lons))
+            }
+
+            print(f"Geographic bounds of radar sweep for {site}: {bounds}")
+
+            bounds_file = f"{output_dir}/{site}_Reflectivity_{timeStr}_bounds.json"
+            with open(bounds_file, 'w') as f:
+                json.dump(bounds, f)
+
+            print(f"Saved geographic bounds to: {bounds_file}")
+        generation_status["status"] = "Idle"
+        generation_status["last_updated"] = dt.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    except Exception as e:
+        generation_status["status"] = f"Error: {e}"
+        generation_status["last_updated"] = dt.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"Error in radar image generation: {e}")
 
 
 if __name__ == '__main__':
