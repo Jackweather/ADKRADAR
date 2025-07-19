@@ -1,7 +1,21 @@
-Flask==3.0.3
-numpy==1.26.4
 matplotlib==3.8.4
-MetPy==1.6.3
+numpy==1.26.4
+arm_pyart==2.0.1
 fsspec==2024.6.1
+metpy==1.6.3
+Flask==3.0.3
 gunicorn==20.1.0
-pyart
+
+# arm_pyart dependencies (common)
+cartopy==0.21.1
+cftime==1.7.2
+mda-xdrlib==0.0.4
+netCDF4==1.6.3
+open_radar_data==0.6.1
+pandas==2.0.3
+pint==0.23
+pooch==1.7.0
+s3fs==2023.9.0
+scipy==1.11.3
+xarray==2023.6.0
+xradar==0.5.1
