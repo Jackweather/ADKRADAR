@@ -1,7 +1,6 @@
-matplotlib
-numpy
-pyart
-fsspec
-metpy
-flask
-gunicorn
+Flask==3.0.3
+numpy==1.26.4
+matplotlib==3.8.4
+MetPy==1.6.3
+fsspec==2024.6.1
+gunicorn==20.1.0
