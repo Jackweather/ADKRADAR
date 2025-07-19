@@ -20,6 +20,14 @@
       font-size: 28px;
       font-weight: bold;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+    #status {
+      font-size: 14px;
+      position: absolute;
+      bottom: 5px;
+      right: 10px;
+      color: #ccc;
     }
     #container {
       display: flex;
@@ -67,16 +75,32 @@
     #opacitySlider {
       width: 80%;
     }
+    .recentImages {
+      margin-top: 20px;
+    }
+    .recentImages img {
+      width: 100%;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+    }
   </style>
 </head>
 <body>
-  <div id="header">ADKRADAR</div>
+  <div id="header">
+    ADKRADAR
+    <div id="status">Loading...</div>
+  </div>
   <div id="container">
     <div id="mainContent">
       <div id="leftPanel">
         <div><strong>Additional Information</strong></div>
         <p>Use the controls on the right to toggle radar overlays.</p>
         <p>Click on the circles on the map to toggle overlays and zoom to their bounds.</p>
+        <div class="recentImages">
+          <strong>Recently Generated Images</strong>
+          <div id="recentImagesContainer">Loading...</div>
+        </div>
       </div>
       <div id="map"></div>
       <div id="rightPanel">
@@ -167,6 +191,47 @@
           overlay.setOpacity(opacity);
         });
       });
+    });
+
+    // Update status periodically
+    function updateStatus() {
+      fetch('/status')
+        .then(response => response.json())
+        .then(data => {
+          const statusElement = document.getElementById('status');
+          statusElement.textContent = `${data.status} (Last updated: ${data.last_updated})`;
+        })
+        .catch(() => {
+          const statusElement = document.getElementById('status');
+          statusElement.textContent = 'Error fetching status';
+        });
+    }
+    setInterval(updateStatus, 5000); // Update every 5 seconds
+
+    // Fetch and display recently generated images
+    function updateRecentImages() {
+      fetch('/recent-images')
+        .then(response => response.json())
+        .then(data => {
+          const container = document.getElementById('recentImagesContainer');
+          container.innerHTML = '';
+          data.forEach(image => {
+            const imgElement = document.createElement('img');
+            imgElement.src = image.image;
+            imgElement.alt = `Radar image for ${image.station}`;
+            container.appendChild(imgElement);
+          });
+        })
+        .catch(() => {
+          const container = document.getElementById('recentImagesContainer');
+          container.textContent = 'Error fetching recent images';
+        });
+    }
+    setInterval(updateRecentImages, 5000); // Update every 5 seconds
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateStatus();
+      updateRecentImages();
     });
   </script>
 </body>
