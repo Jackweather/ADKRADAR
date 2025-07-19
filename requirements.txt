@@ -4,3 +4,4 @@ matplotlib==3.8.4
 MetPy==1.6.3
 fsspec==2024.6.1
 gunicorn==20.1.0
+pyart
