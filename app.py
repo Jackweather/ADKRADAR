@@ -13,15 +13,25 @@ import os
 import glob
 import threading
 import time
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 
 warnings.filterwarnings("ignore")
 
 app = Flask(__name__)
 
+# Global variable to track radar generation status
+generation_status = {"status": "Idle", "last_updated": ""}
+# Global variable to track recently generated radar images
+recent_images = []
+
 def generate_radar_images():
+    global generation_status, recent_images
     while True:
         try:
+            generation_status["status"] = "Generating radar images..."
+            generation_status["last_updated"] = dt.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            recent_images.clear()  # Clear the list of recent images for this cycle
+
             datTime = dt.utcnow()
             year = datTime.strftime("%Y")
             month = datTime.strftime("%m")
@@ -81,6 +91,13 @@ def generate_radar_images():
 
                 print(f"Saved radar image to: {output_file}")
 
+                # Add the generated image to the recent images list
+                recent_images.append({
+                    "station": site,
+                    "image": output_file.replace('\\', '/'),
+                    "timestamp": timeStr
+                })
+
                 gate_lats = radar.gate_latitude['data']
                 gate_lons = radar.gate_longitude['data']
 
@@ -101,12 +118,22 @@ def generate_radar_images():
                     json.dump(bounds, f)
 
                 print(f"Saved geographic bounds to: {bounds_file}")
-
+            generation_status["status"] = "Idle"
         except Exception as e:
-            print(f"Error in radar image generation: {e}")
+            generation_status["status"] = f"Error: {e}"
 
         # Wait 5 minutes 15 seconds before next update
         time.sleep(5 * 60 + 15)
+
+
+@app.route('/status')
+def status():
+    return jsonify(generation_status)
+
+
+@app.route('/recent-images')
+def recent_images_route():
+    return jsonify(recent_images)
 
 
 def get_latest_radar_image(station_id):
