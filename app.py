@@ -121,9 +121,10 @@ def generate_radar_images():
             generation_status["status"] = "Idle"
         except Exception as e:
             generation_status["status"] = f"Error: {e}"
-
-        # Wait 5 minutes 15 seconds before next update
-        time.sleep(5 * 60 + 15)
+            print(f"Error in radar image generation: {e}")
+        finally:
+            # Ensure the function waits for 5 minutes before restarting
+            time.sleep(5 * 60)
 
 
 @app.route('/status')
@@ -257,4 +258,7 @@ if __name__ == '__main__':
     thread.start()
 
     # Run Flask app
-    app.run(debug=True)
+    # Use gunicorn if deployed on Render or similar platforms
+    import os
+    port = int(os.environ.get("PORT", 5000))  # Render sets the PORT environment variable
+    app.run(host="0.0.0.0", port=port, debug=True)
